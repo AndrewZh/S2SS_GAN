@@ -13,6 +13,11 @@ from trainers.pix2pix_trainer import Pix2PixTrainer
 
 # parse options
 opt = TrainOptions().parse()
+opt.semantic_nc=1 # just b0 volume
+opt.dataset_mode = 's2ms'
+opt.dataroot = '/data/s2ms/'
+opt.cropt_size = 50
+opt.samples_per_volume = 200
 
 # print options to help debugging
 print(' '.join(sys.argv))

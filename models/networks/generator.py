@@ -35,8 +35,9 @@ class SPADEGenerator(BaseNetwork):
         else:
             # Otherwise, we make the network deterministic by starting with
             # downsampled segmentation map instead of random z
-            self.fc = nn.Conv2d(self.opt.semantic_nc, 16 * nf, 3, padding=1)
-
+            semantic_nc = 6 
+            self.fc = nn.Conv2d(semantic_nc, 16 * nf, 3, padding=1)
+    
         self.head_0 = SPADEResnetBlock(16 * nf, 16 * nf, opt)
 
         self.G_middle_0 = SPADEResnetBlock(16 * nf, 16 * nf, opt)
@@ -73,20 +74,26 @@ class SPADEGenerator(BaseNetwork):
 
         return sw, sh
 
-    def forward(self, input, z=None):
-        seg = input
+    def forward(self, b_input, b0_image, z=None):
+        # seg = input
 
-        if self.opt.use_vae:
-            # we sample z from unit normal and reshape the tensor
-            if z is None:
-                z = torch.randn(input.size(0), self.opt.z_dim,
-                                dtype=torch.float32, device=input.get_device())
-            x = self.fc(z)
-            x = x.view(-1, 16 * self.opt.ngf, self.sh, self.sw)
-        else:
-            # we downsample segmap and run convolution
-            x = F.interpolate(seg, size=(self.sh, self.sw))
-            x = self.fc(x)
+        # if self.opt.use_vae:
+        #     # we sample z from unit normal and reshape the tensor
+        #     if z is None:
+        #         z = torch.randn(input.size(0), self.opt.z_dim,
+        #                         dtype=torch.float32, device=input.get_device())
+        #     x = self.fc(z)
+        #     x = x.view(-1, 16 * self.opt.ngf, self.sh, self.sw)
+        # else:
+        #     # we downsample segmap and run convolution
+        #     x = F.interpolate(seg, size=(self.sh, self.sw))
+        #     x = self.fc(x)
+
+        seg = b0_image
+        x = F.interpolate(b_input, size=(self.sh, self.sw))
+        
+        x = self.fc(x)
+        x = x.view(-1, 16 * self.opt.ngf, self.sh, self.sw)
 
         x = self.head_0(x, seg)
 
