@@ -1,4 +1,5 @@
 from torchio import ScalarImage, Subject
+from typing import Generator
 import os.path as osp
 import os
 import dipy.io as dio
@@ -19,10 +20,11 @@ def __get_bvolumes_bvecs(bval, all_bvals, dwi, bvecs):
 
     return b_volumes, b_vecs
 
-def subject_generator(data_dir):
+def subject_generator(data_dir) -> Generator[Subject, None, None]:
     subj_ids = os.listdir(data_dir)
 
-    for subj_id in subj_ids:
+    for subj_id in subj_ids[:1]: # sina: why iteration over subjects here?
+        # if subj_id== '715041': # sina: just take one subject 
         subj_dir = osp.join(data_dir, subj_id)
 
         bvals, bvecs = dio.read_bvals_bvecs(osp.join(subj_dir, 'bvals'),
@@ -67,12 +69,14 @@ def subject_generator(data_dir):
 
         slice_idx_volume = torch.FloatTensor(1, h, w, d).zero_()
         for i in range(d):
-            slice_idx_volume[0,...,i] = torch.multiply(torch.ones(h,w),i)
+            #slice_idx_volume[0,...,i] = torch.multiply(torch.ones(h,w),i)
+            slice_idx_volume[0,...,i] = torch.mul(torch.ones(h,w),i)
+            
 
         subject = Subject(subj_id=subj_id, slice_idx=ScalarImage(tensor=slice_idx_volume),
-                          b0=ScalarImage(tensor=b0_volumes),
-                          b1000=ScalarImage(tensor=b1000_volumes), b1000_info=ScalarImage(tensor=b1000_info),
-                          b2000=ScalarImage(tensor=b2000_volumes), b2000_info=ScalarImage(tensor=b2000_info),
-                          b3000=ScalarImage(tensor=b3000_volumes), b3000_info=ScalarImage(tensor=b3000_info))
+                        b0=ScalarImage(tensor=b0_volumes),
+                        b1000=ScalarImage(tensor=b1000_volumes), b1000_info=ScalarImage(tensor=b1000_info),
+                        b2000=ScalarImage(tensor=b2000_volumes), b2000_info=ScalarImage(tensor=b2000_info),
+                        b3000=ScalarImage(tensor=b3000_volumes), b3000_info=ScalarImage(tensor=b3000_info))
 
         yield subject

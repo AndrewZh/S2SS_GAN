@@ -3,7 +3,8 @@ from torchio import Subject
 from torchio.data.sampler import UniformSampler
 from torchio.typing import TypePatchSize
 from torchio.utils import to_tuple
-from typing import Generator
+from typing import Generator, Sequence
+
 import numpy as np
 
 class UniformSlice3DSampler(UniformSampler):
@@ -12,9 +13,6 @@ class UniformSlice3DSampler(UniformSampler):
         patch_size: See :py:class:`~torchio.data.PatchSampler`.
     """
     def __init__(self, patch_size: TypePatchSize):
-        # patch_size = to_tuple(patch_size, length=3)
-        # assert len(patch_size) < 4
-        # patch_size_4d = np.array([*patch_size, 1])
         super().__init__(patch_size)
         self.current_z_slice = 0
         self.remaining_layers = None
