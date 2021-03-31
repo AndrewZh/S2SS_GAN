@@ -14,7 +14,7 @@ class S2MSDataset(BaseDataset):
         # parser.add_argument('--data_dir', type=str)
         parser.add_argument('--patch_size', type=int, default=60, help=' patch size')
         parser.add_argument('--max_queue_len', type=int)
-        parser.add_argument('--max_length', type=int, default=20, help=' maximum length of the queue')
+        parser.add_argument('--max_length', type=int, default=2000, help=' maximum length of the queue')
         # parser.add_argument('--samples_per_volume', type=int)
         return parser
 

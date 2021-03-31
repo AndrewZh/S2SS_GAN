@@ -31,8 +31,9 @@ class UniformSlice3DSampler(UniformSampler):
             )
             raise RuntimeError(message)
 
-        valid_range = subject.spatial_shape[:,-1] - self.patch_size[:,-1]
-        self.remaining_layers = np.random.shuffle(list(range(subject.spatial_shape[-1])))
+        valid_range = subject.spatial_shape[:-1] - self.patch_size[:-1]
+        self.remaining_layers = list(range(subject.spatial_shape[-1]))
+        np.random.shuffle(self.remaining_layers)
         patches_left = num_patches if num_patches is not None else True
         while patches_left:
             index_ini = [
@@ -40,7 +41,8 @@ class UniformSlice3DSampler(UniformSampler):
                 for x in valid_range
             ]
             if not self.remaining_layers:
-                self.remaining_layers = np.random.shuffle(list(range(subject.spatial_shape[-1])))
+                self.remaining_layers = list(range(subject.spatial_shape[-1]))
+                np.random.shuffle(self.remaining_layers)
             current_z_slice = self.remaining_layers.pop()
             index_ini = [*index_ini, current_z_slice]
             
