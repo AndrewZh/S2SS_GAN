@@ -40,31 +40,31 @@ def subject_generator(data_dir) -> Generator[Subject, None, None]:
 
         num_volumes = b1000_volumes.shape[0]
         vol_num, h, w, d = b0_volumes.shape
-        b1000_info = torch.FloatTensor(num_volumes, 6, h, w).zero_()
+        b1000_info = torch.FloatTensor(num_volumes, 6).zero_()
         for volume_idx in range(num_volumes): 
             bvec = b1000_vecs[volume_idx,...]
-            b1000_info[volume_idx,0,...] = 1 # one-hot encode that it's b1000 for now
-            b1000_info[volume_idx,3,...] = bvec[0]
-            b1000_info[volume_idx,4,...] = bvec[1]
-            b1000_info[volume_idx,5,...] = bvec[2]
+            b1000_info[volume_idx,0] = 1 # one-hot encode that it's b1000 for now
+            b1000_info[volume_idx,3] = bvec[0]
+            b1000_info[volume_idx,4] = bvec[1]
+            b1000_info[volume_idx,5] = bvec[2]
 
         num_volumes = b2000_volumes.shape[0]
         b2000_info = torch.FloatTensor(num_volumes, 6, h, w).zero_()
         for volume_idx in range(num_volumes): 
             bvec = b2000_vecs[volume_idx,...]
-            b2000_info[volume_idx,1,...] = 1 # one-hot encode that it's b1000 for now
-            b2000_info[volume_idx,3,...] = bvec[0]
-            b2000_info[volume_idx,4,...] = bvec[1]
-            b2000_info[volume_idx,5,...] = bvec[2]
+            b2000_info[volume_idx,1] = 1 # one-hot encode that it's b1000 for now
+            b2000_info[volume_idx,3] = bvec[0]
+            b2000_info[volume_idx,4] = bvec[1]
+            b2000_info[volume_idx,5] = bvec[2]
 
         num_volumes = b3000_volumes.shape[0]
         b3000_info = torch.FloatTensor(num_volumes, 6, h, w).zero_()
         for volume_idx in range(num_volumes): 
             bvec = b3000_vecs[volume_idx,...]
-            b3000_info[volume_idx,2,...] = 1 # one-hot encode that it's b1000 for now
-            b3000_info[volume_idx,3,...] = bvec[0]
-            b3000_info[volume_idx,4,...] = bvec[1]
-            b3000_info[volume_idx,5,...] = bvec[2]
+            b3000_info[volume_idx,2] = 1 # one-hot encode that it's b1000 for now
+            b3000_info[volume_idx,3] = bvec[0]
+            b3000_info[volume_idx,4] = bvec[1]
+            b3000_info[volume_idx,5] = bvec[2]
 
 
         slice_idx_volume = torch.FloatTensor(1, h, w, d).zero_()
@@ -74,9 +74,8 @@ def subject_generator(data_dir) -> Generator[Subject, None, None]:
             
 
         subject = Subject(subj_id=subj_id, slice_idx=ScalarImage(tensor=slice_idx_volume),
-                        b0=ScalarImage(tensor=b0_volumes),
-                        b1000=ScalarImage(tensor=b1000_volumes), b1000_info=ScalarImage(tensor=b1000_info),
-                        b2000=ScalarImage(tensor=b2000_volumes), b2000_info=ScalarImage(tensor=b2000_info),
-                        b3000=ScalarImage(tensor=b3000_volumes), b3000_info=ScalarImage(tensor=b3000_info))
-
+                          b0=ScalarImage(tensor=b0_volumes),
+                          b1000=ScalarImage(tensor=b1000_volumes), b1000_info=b1000_info,
+                          b2000=ScalarImage(tensor=b2000_volumes), b2000_info=b2000_info,
+                          b3000=ScalarImage(tensor=b3000_volumes), b3000_info=b3000_info)
         yield subject

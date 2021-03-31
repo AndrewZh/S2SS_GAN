@@ -113,11 +113,20 @@ class S2MSModel(torch.nn.Module):
             data['b1000'] = data['b1000'].cuda()
             data['b2000'] = data['b2000'].cuda()
             data['b3000'] = data['b3000'].cuda()
-            data['b1000_info'] = data['b1000_info'].cuda()
-            data['b2000_info'] = data['b2000_info'].cuda()
-            data['b3000_info'] = data['b3000_info'].cuda()
+            # data['b1000_info'] = data['b1000_info'].cuda()
+            # data['b2000_info'] = data['b2000_info'].cuda()
+            # data['b3000_info'] = data['b3000_info'].cuda()
 
-        return data['b1000_info'], data['b0'], data['b1000']
+            _, h, w, d = data['b0'].shape
+            vec_size = data['b1000_info'].shape[0]
+            b1000_info = torch.FloatTensor(vec_size,h,w,d).zero_()
+            bvec = b1000_info
+            for idx in range(vec_size):
+                b1000_info[idx, ...] = bvec[idx]
+            b1000_info = b1000_info.cuda()
+
+        return b1000_info, data['b0'], data['b1000']        
+        # return data['b1000_info'], data['b0'], data['b1000']
 
     def compute_generator_loss(self, b_info, input_semantics, real_image):
         G_losses = {}

@@ -45,6 +45,6 @@ class UniformSlice3DSampler(UniformSampler):
             index_ini = [*index_ini, current_z_slice]
             
             index_ini_array = np.asarray(index_ini)
-            yield self.extract_patch(subject, index_ini_array)
             if num_patches is not None:
                 patches_left -= 1
+            yield self.extract_patch(subject, index_ini_array)
