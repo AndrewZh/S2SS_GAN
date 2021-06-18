@@ -5,19 +5,22 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 
 import sys
 from collections import OrderedDict
+from trainers.s2ms_trainer import S2MSTrainer
 from options.train_options import TrainOptions
 import data
 from util.iter_counter import IterationCounter
 from util.visualizer import Visualizer
-from trainers.pix2pix_trainer import Pix2PixTrainer
+from trainers.s2ms_trainer import S2MSTrainer
 
 # parse options
 opt = TrainOptions().parse()
-opt.semantic_nc=1 # just b0 volume
+opt.semantic_nc=7 # just b0 volume
+opt.output_nc = 1
 opt.dataset_mode = 's2ms'
 opt.dataroot = '/data/s2ms/'
-opt.cropt_size = 50
-opt.samples_per_volume = 200
+opt.crop_size = 128
+opt.aspect_ratio = 1
+# opt.samples_per_volume = 200
 
 # print options to help debugging
 print(' '.join(sys.argv))
@@ -26,7 +29,7 @@ print(' '.join(sys.argv))
 dataloader = data.create_dataloader(opt)
 
 # create trainer for our model
-trainer = Pix2PixTrainer(opt)
+trainer = S2MSTrainer(opt)
 
 # create tool for counting iterations
 iter_counter = IterationCounter(opt, len(dataloader))

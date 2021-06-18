@@ -12,10 +12,11 @@ class UniformSlice3DSampler(UniformSampler):
     Args:
         patch_size: See :py:class:`~torchio.data.PatchSampler`.
     """
-    def __init__(self, patch_size: TypePatchSize):
+    def __init__(self, patch_size: TypePatchSize, num_patches: int):
         super().__init__(patch_size)
         self.current_z_slice = 0
         self.remaining_layers = None
+        self.num_patches = num_patches
 
     def __call__(
             self,
@@ -23,6 +24,9 @@ class UniformSlice3DSampler(UniformSampler):
             num_patches: int = None,
             ) -> Generator[Subject, None, None]:
         subject.check_consistent_spatial_shape()
+
+        if self.num_patches is not None and num_patches is None:
+            num_patches = self.num_patches
 
         if np.any(self.patch_size > subject.spatial_shape):
             message = (
@@ -47,6 +51,7 @@ class UniformSlice3DSampler(UniformSampler):
             index_ini = [*index_ini, current_z_slice]
             
             index_ini_array = np.asarray(index_ini)
-            if num_patches is not None:
+            if patches_left:
                 patches_left -= 1
-            yield self.extract_patch(subject, index_ini_array)
+            p = self.extract_patch(subject, index_ini_array)
+            yield p

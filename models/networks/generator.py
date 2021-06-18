@@ -35,7 +35,7 @@ class SPADEGenerator(BaseNetwork):
         else:
             # Otherwise, we make the network deterministic by starting with
             # downsampled segmentation map instead of random z
-            semantic_nc = 6 
+            semantic_nc = 7 
             self.fc = nn.Conv2d(semantic_nc, 16 * nf, 3, padding=1)
     
         self.head_0 = SPADEResnetBlock(16 * nf, 16 * nf, opt)
@@ -54,7 +54,7 @@ class SPADEGenerator(BaseNetwork):
             self.up_4 = SPADEResnetBlock(1 * nf, nf // 2, opt)
             final_nc = nf // 2
 
-        self.conv_img = nn.Conv2d(final_nc, 3, 3, padding=1)
+        self.conv_img = nn.Conv2d(final_nc, opt.output_nc, 3, padding=1)
 
         self.up = nn.Upsample(scale_factor=2)
 
@@ -89,11 +89,19 @@ class SPADEGenerator(BaseNetwork):
         #     x = F.interpolate(seg, size=(self.sh, self.sw))
         #     x = self.fc(x)
 
-        seg = b0_image
-        x = F.interpolate(b_input, size=(self.sh, self.sw))
+        concat_b0_b = torch.cat((b_input, b0_image['data']), dim=1)
+        concat_b0_b = concat_b0_b.type(torch.cuda.FloatTensor)
+        seg = concat_b0_b 
+        #TODO: concat_b0_b = concatinate b0_image with b_input image in channel direction > B x 7 x 128 x 128 , if crop_size = 128
+        # downscale it and run covolution
+        x = F.interpolate(concat_b0_b, size=(self.sh, self.sw)) # size of: B x 7 x 4 x 4
+        x = self.fc(x) # size of: B x (16 * nf) x 4 x 4
+        # x = x.view(-1, 16 * self.opt.ngf, self.sh, self.sw)
+
+        # x = F.interpolate(seg, size=(self.sh, self.sw))
         
-        x = self.fc(x)
-        x = x.view(-1, 16 * self.opt.ngf, self.sh, self.sw)
+        # x = self.fc(x)
+        # x = x.view(-1, 16 * self.opt.ngf, self.sh, self.sw)
 
         x = self.head_0(x, seg)
 

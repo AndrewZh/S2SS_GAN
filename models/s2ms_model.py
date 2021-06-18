@@ -109,24 +109,42 @@ class S2MSModel(torch.nn.Module):
         # move to GPU and change data types
         # data['label'] = data['label'].long()
         if self.use_gpu():
-            data['b0'] = data['b0'].cuda()
-            data['b1000'] = data['b1000'].cuda()
-            data['b2000'] = data['b2000'].cuda()
-            data['b3000'] = data['b3000'].cuda()
+            
+
+
+            data['b0']['data'] = data['b0']['data'].cuda()
+            data['b0']['data'] = torch.squeeze(data['b0']['data'], 4)
+
+            data['b1000']['data'] = data['b1000']['data'].cuda()
+            data['b1000']['data'] = torch.squeeze(data['b1000']['data'], 4)
+            
+            # data['b2000']['data'] = data['b2000']['data'].cuda()
+            # data['b2000']['data'] = torch.squeeze(data['b2000']['data'], 4)
+            
+            # data['b3000']['data'] = data['b3000']['data'].cuda()
+            # data['b3000']['data'] = torch.squeeze(data['b3000']['data'], 4)
+
+            ## how to reshape the data
+            # b0 shape BS x 1 x crop_size x crop_size -> generator out shape BS x 1 x crop_size x crop_size
+            # bvec shape BS x 90 x 6 -> generator -> BS x 1 x 6 -> reshape to BS x 6 x crop_size x crop_size -> concatinate with b0
+            # b1000 shape BS x 90 x crop_size x crop_size ->  BS x 1 x crop_size x crop_size -> discriminator 
+            
+
+
             # data['b1000_info'] = data['b1000_info'].cuda()
             # data['b2000_info'] = data['b2000_info'].cuda()
             # data['b3000_info'] = data['b3000_info'].cuda()
+            # FIXME
+            # _, _, h, w = data['b0']['data'].shape
+            # vec_size = data['b1000_info'].shape[0]
+            # b1000_info = torch.FloatTensor(vec_size,h,w).zero_()
+            # bvec = b1000_info
+            # for idx in range(vec_size):
+            #     b1000_info[idx, ...] = bvec[idx]
+            # b1000_info = b1000_info.cuda()
 
-            _, h, w, d = data['b0'].shape
-            vec_size = data['b1000_info'].shape[0]
-            b1000_info = torch.FloatTensor(vec_size,h,w,d).zero_()
-            bvec = b1000_info
-            for idx in range(vec_size):
-                b1000_info[idx, ...] = bvec[idx]
-            b1000_info = b1000_info.cuda()
-
-        return b1000_info, data['b0'], data['b1000']        
-        # return data['b1000_info'], data['b0'], data['b1000']
+        # return b1000_info, data['b0'], data['b1000']        
+        return data['b1000_info'], data['b0'], data['b1000']
 
     def compute_generator_loss(self, b_info, input_semantics, real_image):
         G_losses = {}
