@@ -31,7 +31,12 @@ def subject_generator(data_dir, crop_size) -> Generator[Subject, None, None]:
                                             osp.join(subj_dir, 'bvecs'))
         bvals = (np.round(bvals/1000)*1000).astype(np.int)
 
-        dwi = nib.load(osp.join(subj_dir, 'data.nii.gz')).get_fdata()
+        dwi_img = nib.load(osp.join(subj_dir, 'data.nii.gz'))
+        dwi = dwi_img.get_fdata()
+        min_val = np.min(dwi)
+        max_val = np.max(dwi)
+
+        dwi = 2*(dwi - min_val) / (max_val - min_val) -1
         
         b0_volumes, b0_vecs = __get_bvolumes_bvecs(0, bvals, dwi, bvecs)
         b1000_volumes, b1000_vecs = __get_bvolumes_bvecs(1000, bvals, dwi, bvecs)
@@ -40,6 +45,8 @@ def subject_generator(data_dir, crop_size) -> Generator[Subject, None, None]:
 
         num_volumes = b1000_volumes.shape[0]
         for volume_idx in range(num_volumes):
+
+            # print('Volume', volume_idx)
 
             b1000_info = torch.FloatTensor(6, crop_size, crop_size).zero_()
             bvec = b1000_vecs[volume_idx,...]
@@ -50,6 +57,10 @@ def subject_generator(data_dir, crop_size) -> Generator[Subject, None, None]:
 
             corresponding_b1000 = b1000_volumes[volume_idx, ...]
             corresponding_b1000 = np.expand_dims(corresponding_b1000, axis=0)
+
+            sliceIdx_volume = np.ones(corresponding_b1000.shape)
+            for slice in range(corresponding_b1000.shape[-1]):
+                sliceIdx_volume[...,slice] *= slice
 
             # num_volumes = b2000_volumes.shape[0]
             # b2000_info = torch.FloatTensor(num_volumes, 6).zero_()
@@ -70,7 +81,12 @@ def subject_generator(data_dir, crop_size) -> Generator[Subject, None, None]:
             #     b3000_info[volume_idx,5] = bvec[2]
             
             subject = Subject(subj_id=subj_id, b0=ScalarImage(tensor=b0_volumes),
-                            b1000=ScalarImage(tensor=corresponding_b1000), b1000_info=b1000_info)
+                            b1000=ScalarImage(tensor=corresponding_b1000), b1000_info=b1000_info,
+                            slice_volume=ScalarImage(tensor=sliceIdx_volume),
+                            bvec_volume=volume_idx,
+                            max_slices = b0_volumes.shape[-1], 
+                            num_bvec = num_volumes, dwi_affine = dwi_img.affine,
+                            max_val = max_val, min_val = min_val)
                             
                             # b2000=ScalarImage(tensor=b2000_volumes), b2000_info=b2000_info,
                             # b3000=ScalarImage(tensor=b3000_volumes), b3000_info=b3000_info)

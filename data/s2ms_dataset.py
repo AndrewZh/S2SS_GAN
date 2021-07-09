@@ -14,26 +14,31 @@ class S2MSDataset(BaseDataset):
         # parser.add_argument('--data_dir', type=str)
         parser.add_argument('--patch_size', type=int, default=(128,128,1), help=' patch size')
         parser.add_argument('--max_queue_len', type=int)
-        parser.add_argument('--max_length', type=int, default=2000, help=' maximum length of the queue')
+        # set default as 90 (num b-vectors) * 145 (num z-slices)
+        parser.add_argument('--max_length', type=int, default=13050, help=' maximum length of the queue')
         # parser.add_argument('--samples_per_volume', type=int)
         return parser
 
     def initialize(self, opt):
         self.opt = opt
 
+        is_shuffled = self.opt.phase != 'test'
+
         subjects_gen = subject_generator(opt.dataroot, opt.patch_size[0])
         subjects = [s for s in subjects_gen]
         self.dataset_size = len([f for f in os.listdir(opt.dataroot) if osp.isdir(osp.join(opt.dataroot, f))])
-        self.total_patch_number = self.dataset_size * opt.samples_per_volume
+        # self.total_patch_number = self.dataset_size * opt.samples_per_volume * 90
+        self.total_patch_number =  opt.samples_per_volume * 90
 
         subjects_dataset = SubjectsDataset(subjects,
                                 transform=None)
 
-        sampler = UniformSlice3DSampler(opt.patch_size, opt.samples_per_volume)
+        sampler = UniformSlice3DSampler(opt.patch_size, opt.samples_per_volume, is_shuffled)
         self.subject_queue = Queue(subjects_dataset=subjects_dataset,
                                     max_length=opt.max_length,
                                     samples_per_volume=opt.samples_per_volume,
-                                    sampler=sampler
+                                    sampler=sampler, shuffle_subjects=is_shuffled,
+                                    shuffle_patches=is_shuffled
                                     )
         
     def __getitem__(self, index):

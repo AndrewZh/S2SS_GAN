@@ -143,8 +143,11 @@ class S2MSModel(torch.nn.Module):
             #     b1000_info[idx, ...] = bvec[idx]
             # b1000_info = b1000_info.cuda()
 
-        # return b1000_info, data['b0'], data['b1000']        
-        return data['b1000_info'], data['b0'], data['b1000']
+        # return b1000_info, data['b0'], data['b1000']      
+        b1000_info = data['b1000_info'].type(torch.cuda.FloatTensor)  
+        data_b0 = data['b0']['data'].type(torch.cuda.FloatTensor)  
+        data_b1000 = data['b1000']['data'].type(torch.cuda.FloatTensor)
+        return b1000_info, data_b0, data_b1000
 
     def compute_generator_loss(self, b_info, input_semantics, real_image):
         G_losses = {}
@@ -221,7 +224,10 @@ class S2MSModel(torch.nn.Module):
 
     def discriminate(self, b_info, input_semantics, fake_image, real_image):
         fake_concat = torch.cat([b_info, input_semantics, fake_image], dim=1)
+        fake_concat = fake_concat.type(torch.cuda.FloatTensor)
+
         real_concat = torch.cat([b_info, input_semantics, real_image], dim=1)
+        real_concat = real_concat.type(torch.cuda.FloatTensor)
 
         # In Batch Normalization, the fake and real images are
         # recommended to be in the same batch to avoid disparate

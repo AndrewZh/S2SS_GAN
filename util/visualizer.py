@@ -127,11 +127,11 @@ class Visualizer():
 
     def convert_visuals_to_numpy(self, visuals):
         for key, t in visuals.items():
-            tile = self.opt.batchSize > 8
-            if 'input_label' == key:
-                t = util.tensor2label(t, self.opt.label_nc + 2, tile=tile)
-            else:
-                t = util.tensor2im(t, tile=tile)
+            tile = self.opt.batchSize > 3
+            # if 'input_b0' == key:
+            #     t = util.tensor2label(t, self.opt.label_nc + 2, tile=tile)
+            # else:
+            t = util.tensor2im(t, tile=tile)
             visuals[key] = t
         return visuals
 

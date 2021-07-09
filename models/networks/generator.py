@@ -89,7 +89,7 @@ class SPADEGenerator(BaseNetwork):
         #     x = F.interpolate(seg, size=(self.sh, self.sw))
         #     x = self.fc(x)
 
-        concat_b0_b = torch.cat((b_input, b0_image['data']), dim=1)
+        concat_b0_b = torch.cat((b_input, b0_image), dim=1)
         concat_b0_b = concat_b0_b.type(torch.cuda.FloatTensor)
         seg = concat_b0_b 
         #TODO: concat_b0_b = concatinate b0_image with b_input image in channel direction > B x 7 x 128 x 128 , if crop_size = 128
