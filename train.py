@@ -15,16 +15,18 @@ import torch
 
 # parse options
 opt = TrainOptions().parse()
-opt.semantic_nc=7 # just b0 volume
-opt.name = 'label2coco'
-opt.label_nc = 7
+print(opt.continue_train)
+opt.semantic_nc=14 # just b0 volume
+opt.name = 'b0_n_b1000_to_b2000'
+opt.label_nc = 14
 opt.output_nc = 1
 opt.dataset_mode = 's2ms'
 opt.dataroot = '/data/s2ms/train'
-opt.crop_size = 128
+opt.crop_size = 256
 opt.aspect_ratio = 1
 opt.batchSize = 10
-# opt.samples_per_volume = 200
+opt.samples_per_volume = 145 # num z slices
+opt.subj_number = 40
 
 # print options to help debugging
 print(' '.join(sys.argv))
@@ -64,9 +66,10 @@ for epoch in iter_counter.training_epochs():
         if iter_counter.needs_displaying():
             data_i['b0']['data'] = torch.squeeze(data_i['b0']['data'], 4)
             data_i['b1000']['data'] = torch.squeeze(data_i['b1000']['data'], 4)
+            data_i['b2000']['data'] = torch.squeeze(data_i['b2000']['data'], 4)
             visuals = OrderedDict([('input_b0', data_i['b0']['data']),
                                    ('synthesized_image', trainer.get_latest_generated()),
-                                   ('real_b1000', data_i['b1000']['data'])])
+                                   ('real_b2000', data_i['b2000']['data'])])
             visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
 
         if iter_counter.needs_saving():

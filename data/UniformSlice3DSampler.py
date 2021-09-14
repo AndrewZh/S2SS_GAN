@@ -12,12 +12,14 @@ class UniformSlice3DSampler(UniformSampler):
     Args:
         patch_size: See :py:class:`~torchio.data.PatchSampler`.
     """
-    def __init__(self, patch_size: TypePatchSize, num_patches: int, is_shuffled: bool):
+    def __init__(self, patch_size: TypePatchSize, num_patches: int, is_shuffled: bool, is_test: bool):
         super().__init__(patch_size)
         self.current_z_slice = 0
         self.remaining_layers = None
         self.num_patches = num_patches
         self.is_shuffled = is_shuffled
+        self.is_test = is_test
+        self.patches_generated = {}
 
     def __call__(
             self,
@@ -25,6 +27,10 @@ class UniformSlice3DSampler(UniformSampler):
             num_patches: int = None,
             ) -> Generator[Subject, None, None]:
         subject.check_consistent_spatial_shape()
+
+        # if subject['subj_id'] not in self.patches_generated:
+        #     self.patches_generated[subject['subj_id']] = 0
+
         # print('Cropping volume', subject['bvec_volume'])
 
         if self.num_patches is not None and num_patches is None:
@@ -37,13 +43,12 @@ class UniformSlice3DSampler(UniformSampler):
             )
             raise RuntimeError(message)
 
-        # TODO: pad first if spatial shape is smaller than the patch size
-        
-
         valid_range = subject.spatial_shape[:-1] - self.patch_size[:-1]
         self.remaining_layers = list(range(subject.spatial_shape[-1]))
         if self.is_shuffled:
             np.random.shuffle(self.remaining_layers)
+        if self.is_test:
+            num_patches = subject.spatial_shape[-1]
         patches_left = num_patches if num_patches is not None else True
         while patches_left:
             index_ini = [
@@ -61,5 +66,5 @@ class UniformSlice3DSampler(UniformSampler):
             if patches_left:
                 patches_left -= 1
             p = self.extract_patch(subject, index_ini_array)
-            
+            # self.patches_generated[subject['subj_id']] += 1
             yield p
