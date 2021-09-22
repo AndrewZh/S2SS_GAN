@@ -44,22 +44,39 @@ class UniformSlice3DSampler(UniformSampler):
             raise RuntimeError(message)
 
         valid_range = subject.spatial_shape[:-1] - self.patch_size[:-1]
-        self.remaining_layers = list(range(subject.spatial_shape[-1]))
-        if self.is_shuffled:
-            np.random.shuffle(self.remaining_layers)
-        if self.is_test:
-            num_patches = subject.spatial_shape[-1]
+        # self.remaining_layers = list(range(subject.spatial_shape[-1]))
+        # if self.is_shuffled:
+        #     np.random.shuffle(self.remaining_layers)
+        # if self.is_test:
+        num_patches = subject.spatial_shape[-1]
         patches_left = num_patches if num_patches is not None else True
+
+        entry_key = subject['subj_id'] + "_" + str(subject['bvec_volume'])
+
+        if entry_key in self.patches_generated:
+            remaining_layers = [x for x in range(subject.spatial_shape[-1]) if x not in self.patches_generated[entry_key]]
+            # remaining_layers = [x for x in range(1) if x not in self.patches_generated[entry_key]]
+        else:
+            # remaining_layers = [0]
+            remaining_layers = list(range(subject.spatial_shape[-1]))
+
+        if not remaining_layers:
+            return
+
         while patches_left:
-            index_ini = [
-                torch.randint(x + 1, (1,)).item()
-                for x in valid_range
-            ]
-            if not self.remaining_layers:
-                self.remaining_layers = list(range(subject.spatial_shape[-1]))
-                if self.is_shuffled:
-                    np.random.shuffle(self.remaining_layers)
-            current_z_slice = self.remaining_layers.pop()
+            index_ini = [torch.randint(x + 1, (1,)).item() for x in valid_range]
+            
+            if self.is_shuffled:
+                np.random.shuffle(remaining_layers)
+
+            current_z_slice = remaining_layers.pop()
+            
+            if entry_key not in self.patches_generated:
+                self.patches_generated[entry_key] = [current_z_slice]
+            else:
+                self.patches_generated[entry_key].append(current_z_slice)
+
+
             index_ini = [*index_ini, current_z_slice]
             
             index_ini_array = np.asarray(index_ini)
@@ -67,4 +84,5 @@ class UniformSlice3DSampler(UniformSampler):
                 patches_left -= 1
             p = self.extract_patch(subject, index_ini_array)
             # self.patches_generated[subject['subj_id']] += 1
+            
             yield p

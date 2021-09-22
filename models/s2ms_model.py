@@ -7,6 +7,9 @@ import torch
 import models.networks as networks
 import util.util as util
 import numpy as np
+import tensorboardX
+import matplotlib.pyplot as plt
+
 
 class S2MSModel(torch.nn.Module):
     @staticmethod
@@ -22,7 +25,12 @@ class S2MSModel(torch.nn.Module):
         self.ByteTensor = torch.cuda.ByteTensor if self.use_gpu() \
             else torch.ByteTensor
 
+        self.train_writer = tensorboardX.SummaryWriter(self.opt.log_dir)
         self.netG, self.netD, self.netE = self.initialize_networks(opt)
+
+        self.gen_counter = 0
+        self.discrim_counter = 0
+        self.log_iter = opt.display_freq
 
         # set loss functions
         if opt.isTrain:
@@ -41,13 +49,23 @@ class S2MSModel(torch.nn.Module):
     def forward(self, data, mode):
         b_info, input_semantics, real_image = self.preprocess_input(data)
 
+        self.gen_counter += 1
+        self.discrim_counter += 1
+
         if mode == 'generator':
             g_loss, generated = self.compute_generator_loss(b_info,
                 input_semantics, real_image)
+            if self.gen_counter % self.log_iter == 0 and self.opt.phase == 'train':
+                for k, v in g_loss.items():
+                    self.train_writer.add_scalar(k, v)
+                self.vis(self.train_writer, data, generated, self.gen_counter // self.log_iter)
             return g_loss, generated
         elif mode == 'discriminator':
             d_loss = self.compute_discriminator_loss(b_info,
                 input_semantics, real_image)
+            if self.discrim_counter % self.log_iter == 0 and self.opt.phase == 'train':
+                for k, v in d_loss.items():
+                    self.train_writer.add_scalar(k, v)
             return d_loss
         elif mode == 'encode_only':
             z, mu, logvar = self.encode_z(real_image)
@@ -109,8 +127,6 @@ class S2MSModel(torch.nn.Module):
         # move to GPU and change data types
         # data['label'] = data['label'].long()
         if self.use_gpu():
-            
-
 
             data['b0']['data'] = data['b0']['data'].cuda()
             data['b0']['data'] = torch.squeeze(data['b0']['data'], 4)
@@ -118,8 +134,8 @@ class S2MSModel(torch.nn.Module):
             data['b1000']['data'] = data['b1000']['data'].cuda()
             data['b1000']['data'] = torch.squeeze(data['b1000']['data'], 4)
             
-            # data['b2000']['data'] = data['b2000']['data'].cuda()
-            # data['b2000']['data'] = torch.squeeze(data['b2000']['data'], 4)
+            data['b2000']['data'] = data['b2000']['data'].cuda()
+            data['b2000']['data'] = torch.squeeze(data['b2000']['data'], 4)
 
             ## how to reshape the data
             # b0 shape BS x 1 x crop_size x crop_size -> generator out shape BS x 1 x crop_size x crop_size
@@ -127,14 +143,22 @@ class S2MSModel(torch.nn.Module):
             # b1000 shape BS x 90 x crop_size x crop_size ->  BS x 1 x crop_size x crop_size -> discriminator 
 
         b1000_info = data['b1000_info'].type(torch.cuda.FloatTensor)
-        # b2000_info = data['b1000_info'].type(torch.cuda.FloatTensor)
+        b2000_info = data['b2000_info'].type(torch.cuda.FloatTensor)
         data_b0 = data['b0']['data'].type(torch.cuda.FloatTensor)  
         data_b1000 = data['b1000']['data'].type(torch.cuda.FloatTensor)
-        semantics = data_b0 #torch.cat((data_b0, data_b1000), dim=1)
-        b_info = b1000_info # torch.cat((b1000_info, b2000_info), dim=1)
-        # data_b2000 = data['b2000']['data'].type(torch.cuda.FloatTensor)
+        semantics = torch.cat((data_b0, data_b1000), dim=1)
+        b_info = torch.cat((b1000_info, b2000_info), dim=1) # b1000_info
+        data_b2000 = data['b2000']['data'].type(torch.cuda.FloatTensor)
         
-        return b_info, semantics, data_b1000
+        return b_info, semantics, data_b2000
+
+    def extract_slices_for_vis(self, data, generated):
+        b0 = np.squeeze(data['b0']['data'].cpu().numpy()[0,...])
+        b1000 = np.squeeze(data['b1000']['data'].cpu().numpy()[0,...])
+        b2000 = np.squeeze(data['b2000']['data'].cpu().numpy()[0,...])
+        gen = np.squeeze(generated.detach().cpu().numpy()[0,...])
+
+        return [b0, b1000, b2000, gen], ['b0', 'b1000', 'b2000', 'gen']
 
     def compute_generator_loss(self, b_info, input_semantics, real_image):
         G_losses = {}
@@ -259,3 +283,24 @@ class S2MSModel(torch.nn.Module):
 
     def use_gpu(self):
         return len(self.opt.gpu_ids) > 0
+
+    def vis(self, summarywriter, data, generated, step, board_name='train/', cmaps='gist_gray', num_row=1):
+        fig = plt.figure()
+
+        img_list, titles = self.extract_slices_for_vis(data, generated)
+
+        num_figs = len(img_list)
+        num_col = int(np.ceil(num_figs/ num_row))
+        print('Visualizing %d images in %d row %d column'%(num_figs, num_row, num_col))
+
+        for i in range(num_figs):
+            ax = fig.add_subplot(num_row, num_col, i + 1)
+            tmp = img_list[i]
+            if isinstance(cmaps, str): c = cmaps
+            else: c = cmaps[i]
+            vmin = tmp.min()
+            vmax = tmp.max()
+            ax.imshow(tmp, cmap=c, vmin=vmin, vmax=vmax), ax.set_title(titles[i]), ax.axis('off')
+
+        summarywriter.add_figure(board_name, fig, step)
+        plt.close()

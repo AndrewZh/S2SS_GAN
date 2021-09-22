@@ -19,9 +19,9 @@ import nibabel as nib
 
 opt = TestOptions().parse()
 opt.results_dir = "/data/s2ms/results"
-opt.name='b0_to_b1000'
-opt.semantic_nc = 7 # just b0 volume
-opt.label_nc = 7
+opt.name= 'b0_n_b1000_to_b2000' #'b0_to_b1000'
+opt.semantic_nc = 14 # just b0 volume
+opt.label_nc = 14
 opt.output_nc = 1
 opt.dataset_mode = 's2ms'
 opt.dataroot = '/data/s2ms/test'
@@ -29,7 +29,7 @@ opt.crop_size = 256
 opt.aspect_ratio = 1
 opt.batchSize = 1
 opt.samples_per_volume = 145 # number of Z slices
-opt.subj_number = 15
+opt.subj_number = 7
 
 dataloader = data.create_dataloader(opt)
 
@@ -93,14 +93,14 @@ for i, data_i in enumerate(dataloader):
     # if i * opt.batchSize >= opt.how_many:
     #     break
 
-    # generated = model(data_i, mode='inference')
+    generated = model(data_i, mode='inference')
     slice_idx = int(data_i['slice_volume']['data'][0,0,0,0].cpu().numpy())
     bvec_idx = int(data_i['bvec_volume'].cpu().numpy())
 
-    # subj_volume = subj_to_volume[subj_id]
-    # subj_volume[..., slice_idx, bvec_idx+1] = np.squeeze(generated.cpu().numpy())
-    # subj_volume[..., slice_idx, 0] = np.squeeze(data_i['b0']['data'].cpu().numpy())
-    # subj_to_volume[subj_id] = subj_volume
+    subj_volume = subj_to_volume[subj_id]
+    subj_volume[..., slice_idx, bvec_idx+1] = np.squeeze(generated.cpu().numpy())
+    subj_volume[..., slice_idx, 0] = np.squeeze(data_i['b0']['data'].cpu().numpy())
+    subj_to_volume[subj_id] = subj_volume
 
     subj_2_slice_number[subj_id] = subj_2_slice_number[subj_id] - 1
 
