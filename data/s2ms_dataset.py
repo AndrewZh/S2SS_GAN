@@ -8,9 +8,17 @@ import util.util as util
 import os
 import os.path as osp
 import numpy as np
+import h5py
+import torch
+from typing import TypeVar
+
+T_co = TypeVar('T_co', covariant=True)
 
 
 class S2MSDataset(BaseDataset):
+    def __init__(self):
+        super(S2MSDataset, self).__init__()
+
     @staticmethod
     def modify_commandline_options(parser, is_train):
         # parser.add_argument('--data_dir', type=str)
@@ -29,44 +37,62 @@ class S2MSDataset(BaseDataset):
         if not self.is_shuffled:
             self.subj_slice_counter = None
 
-        subjects_gen = subject_generator(opt.dataroot, opt.patch_size[0], opt.subj_number)
-        self.subjects = [s for s in subjects_gen]
-        
-        # self.dataset_size = len([f for f in os.listdir(opt.dataroot) if osp.isdir(osp.join(opt.dataroot, f))])
-        # self.total_patch_number = self.dataset_size * opt.samples_per_volume * 90
 
-        # each subject is actually b-volume
-        self.total_patch_number = np.sum([s['slices_per_volume'] for s in self.subjects])
-        print('Total patch number', self.total_patch_number)
-
-        self.sampler = UniformSlice3DSampler(opt.patch_size, opt.samples_per_volume, self.is_shuffled, is_test)
-        # q_max_length = len(subjects) * opt.samples_per_volume
-        # self.total_patch_number =  int(opt.max_length * len(subjects) / 90) 
-
-        # subjects_dataset = SubjectsDataset(self.subjects,
-        #                         transform=None)
-
-        # self.subject_queue = Queue(subjects_dataset=subjects_dataset,
-        #                             max_length=q_max_length,
-        #                             samples_per_volume=opt.samples_per_volume,
-        #                             sampler=self.sampler, shuffle_subjects=is_shuffled,
-        #                             shuffle_patches=is_shuffled, verbose=True
-        #                             )
-        
     def __getitem__(self, index):
-        assert self.subjects
-        if self.is_shuffled:
-            np.random.shuffle(self.subjects)
-        subject = self.subjects[0]
-        self.subject_gen = self.sampler(subject)
-        try:
-            new_item = next(self.subject_gen)
-        except StopIteration:
-            self.subjects.pop(0)
-            subject = self.subjects[0]
-            self.subject_gen = self.sampler(subject)
-            new_item = next(self.subject_gen)
-        return new_item
+        data_file = h5py.File(self.opt.data_file, 'r')
+        
+        num_subjects = data_file['{}_subj_ids'.format(self.opt.phase)].shape[0]
+        subj_idx = np.random.randint(0, num_subjects)
+        subj_id = data_file['{}_subj_ids'.format(self.opt.phase)][subj_idx]
+        
+        num_slices = data_file['{}_{}_b0'.format(self.opt.phase, subj_id)].shape[0]
+        slice_idx = np.random.randint(0, num_slices)
+        
+        num_b1000_vols = data_file['{}_{}_b1000'.format(self.opt.phase, subj_id)].shape[0] // num_slices
+        b1000_vol_idx = np.random.randint(0, num_b1000_vols)
+
+        num_b2000_vols = data_file['{}_{}_b2000'.format(self.opt.phase, subj_id)].shape[0] // num_slices
+        b2000_vol_idx = np.random.randint(0, num_b2000_vols)
+
+        #num_b3000_vols = data_file['{}_{}_b3000'.format(self.opt.phase, subj_id)].shape[0] // num_slices
+        #b3000_vol_idx = np.random.randint(0, num_b3000_vols)
+
+        slice_b0 = np.expand_dims(data_file['{}_{}_b0'.format(self.opt.phase, subj_id)][slice_idx].transpose(1, 0), axis=0)
+        slice_b1000 = np.expand_dims(data_file['{}_{}_b1000'.format(self.opt.phase, subj_id)][b1000_vol_idx*num_slices+slice_idx].transpose(1, 0), axis=0)
+        slice_b2000 = np.expand_dims(data_file['{}_{}_b2000'.format(self.opt.phase, subj_id)][b2000_vol_idx*num_slices+slice_idx].transpose(1, 0), axis=0)
+        #slice_b3000 = data_file['{}_{}_b3000'.format(self.opt.phase, subj_id)][b3000_vol_idx*num_slices+slice_idx].transpose(0, 2, 1)
+    
+        b1000_vec = np.expand_dims(data_file['{}_{}_bvec_b1000'.format(self.opt.phase, subj_id)][b1000_vol_idx*num_slices+slice_idx], axis=0)
+        b2000_vec = np.expand_dims(data_file['{}_{}_bvec_b2000'.format(self.opt.phase, subj_id)][b2000_vol_idx*num_slices+slice_idx], axis=0)
+
+        slice_b0 = np.clip(slice_b0, 0, 1)
+
+        return_dict = dict()
+        return_dict['b0'] = slice_b0.astype(np.float32)
+        return_dict['b1000_dwi'] = slice_b1000.astype(np.float32)
+        return_dict['b2000_dwi'] = slice_b2000.astype(np.float32)
+        return_dict['b1000_bvec_val'] = b1000_vec.astype(np.float32)
+        return_dict['b2000_bvec_val'] = b2000_vec.astype(np.float32)
+
+        return return_dict
+
+    # def __getitem__(self, index):
+    #     assert self.subjects
+    #     if self.is_shuffled:
+    #         np.random.shuffle(self.subjects)
+    #     subject = next(self.subjects_gen) #self.subjects[0]
+    #     self.subject_slice_gen = self.sampler(subject)
+    #     try:
+    #         new_item = next(self.subject_slice_gen)
+    #     except StopIteration:
+    #         self.subjects.pop(0)
+    #         subject = next(self.subjects_gen) # self.subjects[0]
+    #         self.subject_slice_gen = self.sampler(subject)
+    #         new_item = next(self.subject_slice_gen)
+    #     return new_item
 
     def __len__(self):
-        return self.total_patch_number
+        data_file = h5py.File(self.opt.data_file, 'r')
+        num_items = data_file['{}_total_slices'.format(self.opt.phase)][0]
+        data_file.close()
+        return num_items

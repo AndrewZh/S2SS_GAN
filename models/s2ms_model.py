@@ -128,34 +128,36 @@ class S2MSModel(torch.nn.Module):
         # data['label'] = data['label'].long()
         if self.use_gpu():
 
-            data['b0']['data'] = data['b0']['data'].cuda()
-            data['b0']['data'] = torch.squeeze(data['b0']['data'], 4)
+            data['b0'] = data['b0'].cuda()
+            #data['b0'] = torch.squeeze(data['b0'], 4)
 
-            data['b1000']['data'] = data['b1000']['data'].cuda()
-            data['b1000']['data'] = torch.squeeze(data['b1000']['data'], 4)
+            data['b1000_dwi'] = data['b1000_dwi'].cuda()
+            #data['b1000'] = torch.squeeze(data['b1000'], 4)
             
-            data['b2000']['data'] = data['b2000']['data'].cuda()
-            data['b2000']['data'] = torch.squeeze(data['b2000']['data'], 4)
+            data['b2000_dwi'] = data['b2000_dwi'].cuda()
+            #data['b2000'] = torch.squeeze(data['b2000'], 4)
 
             ## how to reshape the data
             # b0 shape BS x 1 x crop_size x crop_size -> generator out shape BS x 1 x crop_size x crop_size
             # bvec shape BS x 90 x 6 -> generator -> BS x 1 x 6 -> reshape to BS x 6 x crop_size x crop_size -> concatinate with b0
             # b1000 shape BS x 90 x crop_size x crop_size ->  BS x 1 x crop_size x crop_size -> discriminator 
 
-        b1000_info = data['b1000_info'].type(torch.cuda.FloatTensor)
-        b2000_info = data['b2000_info'].type(torch.cuda.FloatTensor)
-        data_b0 = data['b0']['data'].type(torch.cuda.FloatTensor)  
-        data_b1000 = data['b1000']['data'].type(torch.cuda.FloatTensor)
+        b1000_info = torch.squeeze(data['b1000_bvec_val'].type(torch.cuda.FloatTensor), dim=1).cpu()
+        b2000_info = torch.squeeze(data['b2000_bvec_val'].type(torch.cuda.FloatTensor), dim=1).cpu()
+        data_b0 = data['b0'].type(torch.cuda.FloatTensor)  
+        data_b1000 = data['b1000_dwi'].type(torch.cuda.FloatTensor)
+        b1000_info_mat = torch.ones(b1000_info.shape + data_b0.shape[-2:]) * b1000_info[..., None, None]
+        b2000_info_mat = torch.ones(b2000_info.shape + data_b0.shape[-2:]) * b2000_info[..., None, None]
         semantics = torch.cat((data_b0, data_b1000), dim=1)
-        b_info = torch.cat((b1000_info, b2000_info), dim=1) # b1000_info
-        data_b2000 = data['b2000']['data'].type(torch.cuda.FloatTensor)
+        b_info = torch.cat((b1000_info_mat, b2000_info_mat), dim=1).cuda() # b1000_info
+        data_b2000 = data['b2000_dwi'].type(torch.cuda.FloatTensor)
         
         return b_info, semantics, data_b2000
 
     def extract_slices_for_vis(self, data, generated):
-        b0 = np.squeeze(data['b0']['data'].cpu().numpy()[0,...])
-        b1000 = np.squeeze(data['b1000']['data'].cpu().numpy()[0,...])
-        b2000 = np.squeeze(data['b2000']['data'].cpu().numpy()[0,...])
+        b0 = np.squeeze(data['b0'].cpu().numpy()[0,...])
+        b1000 = np.squeeze(data['b1000_dwi'].cpu().numpy()[0,...])
+        b2000 = np.squeeze(data['b2000_dwi'].cpu().numpy()[0,...])
         gen = np.squeeze(generated.detach().cpu().numpy()[0,...])
 
         return [b0, b1000, b2000, gen], ['b0', 'b1000', 'b2000', 'gen']

@@ -20,8 +20,11 @@ def __get_bvolumes_bvecs(bval, all_bvals, dwi, bvecs):
 
     return b_volumes, b_vecs
 
-def subject_generator(data_dir, crop_size, subj_number) -> Generator[Subject, None, None]:
+def subject_generator(data_dir, crop_size, subj_number, is_shuffled) -> Generator[Subject, None, None]:
     subj_ids = [f for f in sorted(os.listdir(data_dir)) if osp.isdir(osp.join(data_dir,f))]
+
+    if is_shuffled:
+        np.random.shuffle(subj_ids)
 
     # subj_ids = ['872764', '899885', '901038']
     for subj_id in subj_ids[:subj_number]: # sina: why iteration over subjects here?

@@ -16,17 +16,18 @@ import torch
 # parse options
 opt = TrainOptions().parse()
 print(opt.continue_train)
-opt.semantic_nc=14 # just b0 volume
+opt.semantic_nc = 10 # just b0 volume
 opt.name = 'b0_n_b1000_to_b2000'
-opt.label_nc = 14
+opt.label_nc = 10
 opt.output_nc = 1
 opt.dataset_mode = 's2ms'
 opt.dataroot = '/data/s2ms/train'
+opt.data_file = '/data/s2ms/train/train_2.hdf5'
 opt.crop_size = 256
 opt.aspect_ratio = 1
 opt.batchSize = 5
 opt.samples_per_volume = 145 # num z slices
-opt.subj_number = 40
+opt.subj_number = 2
 
 # print options to help debugging
 print(' '.join(sys.argv))
@@ -56,6 +57,8 @@ for epoch in iter_counter.training_epochs():
 
         # train discriminator
         trainer.run_discriminator_one_step(data_i)
+
+        del data_i
 
         # Visualizations
         # if iter_counter.needs_printing():
