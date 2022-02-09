@@ -17,15 +17,16 @@ import torch
 opt = TrainOptions().parse()
 print(opt.continue_train)
 opt.semantic_nc = 10 # just b0 volume
-opt.name = 'b0_n_b1000_to_b2000'
+opt.name = 'b0_n_10xb1000_to_b2000_normBval'
 opt.label_nc = 10
 opt.output_nc = 1
 opt.dataset_mode = 's2ms'
 opt.dataroot = '/data/s2ms/train'
-opt.data_file = '/data/s2ms/train/train_2.hdf5'
+opt.data_file = '/data/s2ms/train/train_15_norm_bVal.hdf5'
+# opt.data_file = '/data/s2ms/train/train_15.hdf5'
 opt.crop_size = 256
 opt.aspect_ratio = 1
-opt.batchSize = 5
+opt.batchSize = 10
 opt.samples_per_volume = 145 # num z slices
 opt.subj_number = 2
 
@@ -58,38 +59,41 @@ for epoch in iter_counter.training_epochs():
         # train discriminator
         trainer.run_discriminator_one_step(data_i)
 
-        del data_i
-
         # Visualizations
-        # if iter_counter.needs_printing():
-        #     losses = trainer.get_latest_losses()
-        #     visualizer.print_current_errors(epoch, iter_counter.epoch_iter,
-        #                                     losses, iter_counter.time_per_iter)
-        #     visualizer.plot_current_errors(losses, iter_counter.total_steps_so_far)
+        if iter_counter.needs_printing():
+            losses = trainer.get_latest_losses()
+            visualizer.print_current_errors(epoch, iter_counter.epoch_iter,
+                                            losses, iter_counter.time_per_iter)
+            # visualizer.plot_current_errors(losses, iter_counter.total_steps_so_far)
 
-        # if iter_counter.needs_displaying():
-        #     data_i['b0']['data'] = torch.squeeze(data_i['b0']['data'], 4)
-        #     data_i['b1000']['data'] = torch.squeeze(data_i['b1000']['data'], 4)
-        #     data_i['b2000']['data'] = torch.squeeze(data_i['b2000']['data'], 4)
-        #     visuals = OrderedDict([('input_b0', data_i['b0']['data']),
-        #                            ('synthesized_image', trainer.get_latest_generated()),
-        #                            ('real_b2000', data_i['b2000']['data'])])
-        #     visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
+        if iter_counter.needs_displaying():
+            losses = trainer.get_latest_losses()
+            visualizer.plot_current_errors(losses, iter_counter.total_steps_so_far)
+            visualizer.vis(data_i, trainer.get_latest_generated(), iter_counter.total_steps_so_far)
+            #visuals = OrderedDict([('input_b0', data_i['b0']),
+            #                       ('input_b1000', data_i['b1000_dwi']),
+            #                       ('synthesized_image', trainer.get_latest_generated()),
+            #                       ('real_b2000', data_i['b2000_dwi'])])
+            #visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
+            
 
         if iter_counter.needs_saving():
             print('saving the latest model (epoch %d, total_steps %d)' %
                   (epoch, iter_counter.total_steps_so_far))
             trainer.save('latest')
             iter_counter.record_current_iter()
+        
 
-    # trainer.update_learning_rate(epoch)
-    # iter_counter.record_epoch_end()
+        del data_i
 
-    # if epoch % opt.save_epoch_freq == 0 or \
-    #    epoch == iter_counter.total_epochs:
-    #     print('saving the model at the end of epoch %d, iters %d' %
-    #           (epoch, iter_counter.total_steps_so_far))
-    #     trainer.save('latest')
-    #     trainer.save(epoch)
+    trainer.update_learning_rate(epoch)
+    iter_counter.record_epoch_end()
+
+    if epoch % opt.save_epoch_freq == 0 or \
+       epoch == iter_counter.total_epochs:
+        print('saving the model at the end of epoch %d, iters %d' %
+              (epoch, iter_counter.total_steps_so_far))
+        trainer.save('latest')
+        trainer.save(epoch)
 
 print('Training was successfully finished.')

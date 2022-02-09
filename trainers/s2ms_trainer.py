@@ -34,6 +34,7 @@ class S2MSTrainer():
         self.optimizer_G.zero_grad()
         g_losses, generated = self.s2ms_model(data, mode='generator')
         g_loss = sum(g_losses.values()).mean()
+        # g_loss = (sum(20*g_losses['GAN']).mean() + sum(g_losses['GAN_Feat']).mean() + sum(g_losses['VGG']).mean()) / 3
         g_loss.backward()
         self.optimizer_G.step()
         self.g_losses = g_losses

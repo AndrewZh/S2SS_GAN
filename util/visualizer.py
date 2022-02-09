@@ -13,6 +13,9 @@ try:
     from StringIO import StringIO  # Python 2.7
 except ImportError:
     from io import BytesIO         # Python 3.x
+import tensorboardX
+import matplotlib.pyplot as plt
+import numpy as np
 
 class Visualizer():
     def __init__(self, opt):
@@ -21,11 +24,11 @@ class Visualizer():
         self.use_html = opt.isTrain and not opt.no_html
         self.win_size = opt.display_winsize
         self.name = opt.name
-        if self.tf_log:
-            import tensorflow as tf
-            self.tf = tf
-            self.log_dir = os.path.join(opt.checkpoints_dir, opt.name, 'logs')
-            self.writer = tf.summary.FileWriter(self.log_dir)
+        
+            #import tensorflow as tf
+            #self.tf = tf
+        self.log_dir = os.path.join(opt.checkpoints_dir, opt.name, 'logs')
+        self.writer = tensorboardX.SummaryWriter(self.log_dir)
 
         if self.use_html:
             self.web_dir = os.path.join(opt.checkpoints_dir, opt.name, 'web')
@@ -38,32 +41,42 @@ class Visualizer():
                 now = time.strftime("%c")
                 log_file.write('================ Training Loss (%s) ================\n' % now)
 
+    def extract_slices_for_vis(self, data, generated):
+        b0 = np.squeeze(data['b0'].cpu().numpy()[0,...])
+        b1000 = np.squeeze(data['b1000_dwi'].cpu().numpy()[0,...])
+        b2000 = np.squeeze(data['b2000_dwi'].cpu().numpy()[0,...])
+        gen = np.squeeze(generated.detach().cpu().numpy()[0,...])
+
+        return [b0, b1000, b2000, gen], ['b0', 'b1000', 'b2000', 'gen']
+
+    def vis(self, data, generated, step, board_name='train/', cmaps='gist_gray', num_row=1):
+        fig = plt.figure()
+
+        img_list, titles = self.extract_slices_for_vis(data, generated)
+
+        num_figs = len(img_list)
+        num_col = int(np.ceil(num_figs/ num_row))
+        print('Visualizing %d images in %d row %d column'%(num_figs, num_row, num_col))
+
+        for i in range(num_figs):
+            ax = fig.add_subplot(num_row, num_col, i + 1)
+            tmp = img_list[i]
+            if isinstance(cmaps, str): c = cmaps
+            else: c = cmaps[i]
+            vmin = tmp.min()
+            vmax = tmp.max()
+            ax.imshow(tmp, cmap=c, vmin=vmin, vmax=vmax), ax.set_title(titles[i]), ax.axis('off')
+
+        self.writer.add_figure(board_name, fig, step)
+        self.writer.flush()
+        plt.close()
+
     # |visuals|: dictionary of images to display or save
     def display_current_results(self, visuals, epoch, step):
 
         ## convert tensors to numpy arrays
         visuals = self.convert_visuals_to_numpy(visuals)
-                
-        if self.tf_log: # show images in tensorboard output
-            img_summaries = []
-            for label, image_numpy in visuals.items():
-                # Write the image to a string
-                try:
-                    s = StringIO()
-                except:
-                    s = BytesIO()
-                if len(image_numpy.shape) >= 4:
-                    image_numpy = image_numpy[0]
-                scipy.misc.toimage(image_numpy).save(s, format="jpeg")
-                # Create an Image object
-                img_sum = self.tf.Summary.Image(encoded_image_string=s.getvalue(), height=image_numpy.shape[0], width=image_numpy.shape[1])
-                # Create a Summary value
-                img_summaries.append(self.tf.Summary.Value(tag=label, image=img_sum))
-
-            # Create and write Summary
-            summary = self.tf.Summary(value=img_summaries)
-            self.writer.add_summary(summary, step)
-
+            
         if self.use_html: # save images to a html file
             for label, image_numpy in visuals.items():
                 if isinstance(image_numpy, list):
@@ -106,11 +119,11 @@ class Visualizer():
 
     # errors: dictionary of error labels and values
     def plot_current_errors(self, errors, step):
-        if self.tf_log:
-            for tag, value in errors.items():
-                value = value.mean().float()
-                summary = self.tf.Summary(value=[self.tf.Summary.Value(tag=tag, simple_value=value)])
-                self.writer.add_summary(summary, step)
+        # if self.tf_log:
+        for tag, value in errors.items():
+            value = value.mean().float()
+            self.writer.add_scalar(tag, value, global_step=step)
+        self.writer.flush()
 
     # errors: same format as |errors| of plotCurrentErrors
     def print_current_errors(self, epoch, i, errors, t):
